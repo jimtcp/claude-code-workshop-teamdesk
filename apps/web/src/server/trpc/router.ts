@@ -1,5 +1,6 @@
 import { protectedProcedure, router } from "./init.ts";
 import { announcementsRouter } from "./routers/announcements.ts";
+import { assistantRouter } from "./routers/assistant.ts";
 import { bookingsRouter } from "./routers/bookings.ts";
 import { membersRouter } from "./routers/members.ts";
 import { notesRouter } from "./routers/notes.ts";
@@ -8,6 +9,7 @@ import { tasksRouter } from "./routers/tasks.ts";
 
 export const appRouter = router({
   announcements: announcementsRouter,
+  assistant: assistantRouter,
   bookings: bookingsRouter,
   /** The caller's user id. The example protected procedure. */
   me: protectedProcedure.query(({ ctx }) => ({ userId: ctx.userId })),
