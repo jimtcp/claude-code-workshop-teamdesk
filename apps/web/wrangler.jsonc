@@ -5,12 +5,13 @@
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
   "observability": { "enabled": true },
+  "ai": { "binding": "AI" },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "teamdesk",
       // Filled in by `wrangler d1 create`. Local development ignores the value.
-      "database_id": "local",
+      "database_id": "08617b28-977b-4c1b-9ac7-e36d0c7e3e29",
       "migrations_dir": "../../packages/db/migrations"
     }
   ]

@@ -5,6 +5,7 @@
 import { env } from "cloudflare:workers";
 import type { Database } from "@repo/db";
 import { createAnnouncementsService } from "@repo/services/announcements";
+import { createAssistantService } from "@repo/services/assistant";
 import { createAvailabilityService } from "@repo/services/availability";
 import { createBookingsService } from "@repo/services/bookings";
 import { createMembersService } from "@repo/services/members";
@@ -13,9 +14,11 @@ import { createRoomsService } from "@repo/services/rooms";
 import { createTasksService } from "@repo/services/tasks";
 import { drizzle } from "drizzle-orm/d1";
 import type { Context as HonoContext } from "hono";
+import { createWorkersAiParser } from "../assistant-model.ts";
 
-const createServices = (db: Database) => ({
+const createServices = (db: Database, ai: Ai) => ({
   announcements: createAnnouncementsService(db),
+  assistant: createAssistantService(db, createWorkersAiParser(ai)),
   availability: createAvailabilityService(db),
   bookings: createBookingsService(db),
   members: createMembersService(db),
@@ -35,7 +38,7 @@ export type Context = {
 };
 
 const createContext = (bindings: Env, userId: string | null): Context => ({
-  services: createServices(drizzle(bindings.DB)),
+  services: createServices(drizzle(bindings.DB), bindings.AI),
   userId,
 });
 

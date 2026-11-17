@@ -7,8 +7,10 @@ import {
   useMemo,
   useState,
 } from "react";
+import AssistantBox from "#/components/bookings/AssistantBox";
 import BookingForm, {
   type BookingDraft,
+  type BookingPrefill,
 } from "#/components/bookings/BookingForm";
 import BookingList from "#/components/bookings/BookingList";
 import FormError from "#/components/form-error";
@@ -22,9 +24,14 @@ import {
 import { useActingMember } from "#/hooks/use-acting-member";
 import { useAction } from "#/hooks/use-action";
 import { getTrpc } from "#/integrations/trpc/client";
-import { todayUtc } from "#/lib/datetime";
+import { formatUtcTime, todayUtc } from "#/lib/datetime";
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const DEFAULT_PREFILL: BookingPrefill = {
+  attendees: 1,
+  endTime: "10:00",
+  startTime: "09:00",
+};
 
 interface BookingsSearch {
   day?: string;
@@ -72,6 +79,25 @@ function BookingsPage() {
   const cancelBooking = useAction();
   const actorId = actingMember?.id ?? "";
   const [upcoming, setUpcoming] = useState<Booking[]>([]);
+  const [prefill, setPrefill] = useState<BookingPrefill>(DEFAULT_PREFILL);
+  const [prefillKey, setPrefillKey] = useState(0);
+
+  // Picking a suggested room switches room and day, then refills the form.
+  const handlePick = useCallback(
+    (
+      roomId: string,
+      slot: { attendees: number; endsAt: string; startsAt: string }
+    ) => {
+      setPrefill({
+        attendees: slot.attendees,
+        endTime: formatUtcTime(slot.endsAt),
+        startTime: formatUtcTime(slot.startsAt),
+      });
+      setPrefillKey((key) => key + 1);
+      navigate({ search: { day: slot.startsAt.slice(0, 10), roomId } });
+    },
+    [navigate]
+  );
 
   const memberNames = useMemo(
     () => new Map(members.map((member) => [member.id, member.name])),
@@ -173,7 +199,10 @@ function BookingsPage() {
 
       {room ? (
         <>
-          <section className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="mt-10">
+            <AssistantBox onPick={handlePick} />
+          </div>
+          <section className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
             <NativeSelect
               aria-label="Room"
               onChange={handleRoomChange}
@@ -199,8 +228,10 @@ function BookingsPage() {
               capacity={room.capacity}
               day={day}
               error={createBooking.error}
+              key={prefillKey}
               onSubmit={handleCreate}
               pending={createBooking.pending}
+              prefill={prefill}
             />
           </div>
 

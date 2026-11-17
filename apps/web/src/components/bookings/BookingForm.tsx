@@ -12,6 +12,13 @@ export interface BookingDraft {
   title: string;
 }
 
+/** Values the assistant fills in; remount the form (via `key`) to apply. */
+export interface BookingPrefill {
+  attendees: number;
+  endTime: string;
+  startTime: string;
+}
+
 interface BookingFormProps {
   capacity: number;
   /** The chosen UTC day, YYYY-MM-DD. */
@@ -19,6 +26,7 @@ interface BookingFormProps {
   error: string | null;
   onSubmit: (draft: BookingDraft) => Promise<boolean>;
   pending: boolean;
+  prefill: BookingPrefill;
 }
 
 export default function BookingForm({
@@ -27,6 +35,7 @@ export default function BookingForm({
   error,
   onSubmit,
   pending,
+  prefill,
 }: BookingFormProps) {
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -62,7 +71,7 @@ export default function BookingForm({
         <label className="grid gap-1 text-sm" htmlFor="booking-start">
           Start
           <Input
-            defaultValue="09:00"
+            defaultValue={prefill.startTime}
             id="booking-start"
             name="startsAt"
             required
@@ -73,7 +82,7 @@ export default function BookingForm({
         <label className="grid gap-1 text-sm" htmlFor="booking-end">
           End
           <Input
-            defaultValue="10:00"
+            defaultValue={prefill.endTime}
             id="booking-end"
             name="endsAt"
             required
@@ -84,7 +93,7 @@ export default function BookingForm({
         <label className="grid gap-1 text-sm" htmlFor="booking-attendees">
           Attendees
           <Input
-            defaultValue={1}
+            defaultValue={prefill.attendees}
             id="booking-attendees"
             max={capacity}
             min={1}

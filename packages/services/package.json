@@ -4,6 +4,8 @@
   "type": "module",
   "exports": {
     "./announcements": "./src/announcements.ts",
+    "./assistant": "./src/assistant.ts",
+    "./assistant-slot": "./src/assistant-slot.ts",
     "./availability": "./src/availability.ts",
     "./bookings": "./src/bookings.ts",
     "./errors": "./src/errors.ts",
