@@ -73,6 +73,17 @@ describe("assistant service", () => {
     });
   });
 
+  test("a missing time is an error", async () => {
+    const assistant = build(() => Promise.resolve({ startsAt: at("09:00") }));
+
+    const result = await assistant.suggest({ text: "a room at nine" });
+
+    expect(result).toEqual({
+      error: "Tell me a day and a time range.",
+      ok: false,
+    });
+  });
+
   test("an end before the start is an error", async () => {
     const assistant = build(() =>
       Promise.resolve({ endsAt: at("09:00"), startsAt: at("10:00") })
