@@ -1,6 +1,6 @@
 # Booking assistant
 
-Status: draft. Scope: about 20 minutes to build.
+Status: implemented. Scope: about 20 minutes to build. Local Workers AI calls need `wrangler login` and may incur usage. See [the plan](./booking-assistant-plan.md).
 
 ## Goal
 
