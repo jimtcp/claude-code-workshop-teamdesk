@@ -6,8 +6,11 @@ import { Input } from "#/components/ui/input";
 import { getTrpc } from "#/integrations/trpc/client";
 import { formatUtcRange } from "#/lib/datetime";
 
-type Suggestion = Awaited<
-  ReturnType<ReturnType<typeof getTrpc>["assistant"]["suggest"]["query"]>
+type Suggestion = Extract<
+  Awaited<
+    ReturnType<ReturnType<typeof getTrpc>["assistant"]["suggest"]["query"]>
+  >,
+  { ok: true }
 >;
 
 interface AssistantBoxProps {
@@ -47,7 +50,13 @@ export default function AssistantBox({ onPick }: AssistantBoxProps) {
       setPending(true);
       setError(null);
       try {
-        setSuggestion(await getTrpc().assistant.suggest.query({ text }));
+        const result = await getTrpc().assistant.suggest.query({ text });
+        if (result.ok) {
+          setSuggestion(result);
+        } else {
+          setSuggestion(null);
+          setError(result.error);
+        }
       } catch (err) {
         setSuggestion(null);
         setError(err instanceof Error ? err.message : "Something went wrong.");
