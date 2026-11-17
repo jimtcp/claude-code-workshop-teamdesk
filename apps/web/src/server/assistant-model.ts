@@ -1,6 +1,8 @@
-// The only code that calls Workers AI. Turns a booking request into raw slot
-// JSON; the assistant service validates whatever comes back.
+// The only code that calls Workers AI. The model only extracts literal fields
+// from the request; dates are resolved in code (assistant-slot.ts), because
+// the small model does unreliable date math.
 import type { SlotParser } from "@repo/services/assistant";
+import { resolveSlot, type SlotFields } from "@repo/services/assistant-slot";
 
 const MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 
@@ -18,50 +20,26 @@ const extractJson = (response: unknown): unknown => {
   return JSON.parse(match[0]);
 };
 
-const WEEKDAYS = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** The correct answer for "room for 6 tomorrow 2-3pm", so the model copies real dates. */
-const exampleSlot = (now: Date) => {
-  const day = new Date(now.getTime() + DAY_MS).toISOString().slice(0, 10);
-  return {
-    attendees: 6,
-    endsAt: `${day}T15:00:00.000Z`,
-    startsAt: `${day}T14:00:00.000Z`,
-  };
-};
-
-const systemPrompt = (now: Date) =>
-  [
-    "You turn a room booking request into JSON.",
-    `The current time is ${now.toISOString()} (a ${WEEKDAYS[now.getUTCDay()]}). All times are UTC.`,
-    "Return only a JSON object with startsAt and endsAt as ISO 8601 UTC",
-    "datetimes (like 2026-10-23T14:00:00.000Z) and attendees as an integer.",
-    "Use 1 for attendees if the request does not say.",
-    "Resolve today, tomorrow and weekday names from the current date;",
-    "a weekday name means its next occurrence after today.",
-    "Times without am or pm in a range like 10-11 are morning hours;",
-    "2-3pm means 14:00 to 15:00.",
-    "The request must give both a start and an end time.",
-    "If it gives no day, or no start and end time, return exactly {}.",
-    "Never guess or invent a time that was not asked for.",
-    "Reply with the JSON object only, no other text.",
-    "Examples, using the current time above:",
-    '"room for 6 tomorrow 2-3pm" ->',
-    JSON.stringify(exampleSlot(now)),
-    '"book something nice" -> {}',
-    '"a room at 5pm" -> {}',
-    '"room tomorrow" -> {}',
-  ].join(" ");
+const SYSTEM_PROMPT = [
+  "You extract literal fields from a room booking request. Do no date math.",
+  "Return only a JSON object with exactly these keys:",
+  "attendees (integer or null), day (string or null),",
+  "start (HH:MM 24-hour string or null), end (HH:MM 24-hour string or null).",
+  "day is copied exactly as written: today, tomorrow, a weekday name",
+  "(like monday), or a YYYY-MM-DD date. Drop words like next or on.",
+  "start and end are the times the request states, converted to 24-hour HH:MM.",
+  "In a range like 10-11 without am or pm, use morning hours; 2-3pm is 14:00 and 15:00.",
+  "Use null for anything the request does not state.",
+  "Never infer or invent an end time: a request with only one time has end null.",
+  "Reply with the JSON object only, no other text.",
+  "Examples:",
+  '"room for 6 tomorrow 2-3pm" -> {"attendees":6,"day":"tomorrow","start":"14:00","end":"15:00"}',
+  '"a room next Monday 9 to 10am" -> {"attendees":null,"day":"monday","start":"09:00","end":"10:00"}',
+  '"room on Friday 1 to 2pm" -> {"attendees":null,"day":"friday","start":"13:00","end":"14:00"}',
+  '"room for 3 at 5pm" -> {"attendees":3,"day":null,"start":"17:00","end":null}',
+  '"room for 2 today at 4pm" -> {"attendees":2,"day":"today","start":"16:00","end":null}',
+  '"book something nice" -> {"attendees":null,"day":null,"start":null,"end":null}',
+].join(" ");
 
 /** Builds the parser from the Workers AI binding. */
 export const createWorkersAiParser =
@@ -70,11 +48,13 @@ export const createWorkersAiParser =
     try {
       const output = (await ai.run(MODEL, {
         messages: [
-          { content: systemPrompt(now), role: "system" },
+          { content: SYSTEM_PROMPT, role: "system" },
           { content: text, role: "user" },
         ],
       })) as { response?: unknown };
-      return extractJson(output.response);
+      const fields = extractJson(output.response) as SlotFields;
+      // {} makes the service answer "Tell me a day and a time range."
+      return resolveSlot(fields, now) ?? {};
     } catch (error) {
       // The service turns this into a friendly message; keep the cause visible.
       console.error("assistant: model call failed", error);
