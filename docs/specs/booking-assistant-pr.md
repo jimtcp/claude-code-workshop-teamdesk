@@ -44,6 +44,7 @@ Adds a request box above the booking form on `/bookings`. A member types somethi
 - Workers AI calls work locally only after `wrangler login`, and each call may incur usage on the Cloudflare account. The model adapter is not unit-tested; it is checked by hand only, per the spec.
 - Small models can return refusals or malformed JSON. The zod check in the service and the friendly "couldn't understand" error cover both. A reply of `{}` (no time given) is rejected by the same check and shows "Tell me a day and a time range."
 - The adapter pulls the first `{...}` object out of the reply, so a model that wraps its JSON in prose still works. If a reply contains more than one object, only the first is used.
+- Known model limits (`llama-3.1-8b-instruct-fp8`, checked by hand on the dev server): "today"/"tomorrow" requests and unparseable text behave reliably, but weekday names such as "next Monday" often resolve to the wrong date, and a request with a start but no end time (for example "at 5pm") is sometimes given a guessed one-hour end instead of being rejected. The prompt includes a worked example built from the real current time. A larger model or resolving dates in code would fix both; the member always reviews the prefilled form, so a wrong guess is visible before booking.
 - Times are UTC throughout, as elsewhere in the app. Time zones other than UTC, booking from the assistant, multi-turn chat, and suggesting alternative times are out of scope.
 - No rate limiting, streaming, or saved request history yet.
 
